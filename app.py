@@ -326,24 +326,96 @@ def compat(a, b):
 # ---------------------------------------------------------------------
 st.markdown("""
 <style>
-.card {border-radius:18px; padding:22px 24px; margin:6px 0 14px 0;
-       background:linear-gradient(135deg,#1E3A5F 0%,#2F6DB5 100%); color:#fff;}
-.card .code {font-size:15px; letter-spacing:4px; opacity:.85;}
-.card .name {font-size:30px; font-weight:800; margin:4px 0 2px 0;}
-.card .stock {font-size:18px; margin-top:6px;}
-.card .stock b {background:#fff; color:#1E3A5F; padding:2px 10px; border-radius:8px;}
-.chips span {display:inline-block; background:#EEF3F9; color:#1E3A5F; border-radius:999px;
-             padding:4px 12px; margin:3px 6px 3px 0; font-size:13px; font-weight:600;}
-.box {border-radius:14px; padding:14px 16px; margin:8px 0; border:1px solid #D9E2EC; background:#F8FAFC; color:#1F2933;}
-.box.warn {background:#FFF6F0; border-color:#F5C7A9;}
-.box h4 {margin:0 0 6px 0; font-size:15px;}
-.bar {display:flex; align-items:center; gap:8px; margin:6px 0; font-size:13px; color:inherit;}
-.bar .track {flex:1; height:12px; background:#E4E9F0; border-radius:999px; overflow:hidden;}
-.bar .fill {height:100%; background:#2F6DB5;}
-.bar .lab {width:64px; text-align:center; font-weight:700;}
-.small {font-size:12px; opacity:.7;}
+/* ---- 토스 느낌: 회색 배경 + 흰 카드, 토스 블루, Pretendard, 큼직한 굵은 글씨 ---- */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+html, body, .stApp, p, div, li, label, input, textarea, button, h1, h2, h3, h4 {
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', sans-serif;
+  letter-spacing: -0.01em;
+}
+[data-testid="stDecoration"], [data-testid="stAppDeployButton"] {display:none;}
+.block-container {padding-top:2.2rem; padding-bottom:6rem; max-width:680px;}
+h1 {font-size:26px !important; font-weight:800 !important; letter-spacing:-0.03em; color:#191F28;}
+p, li {color:#333D4B; line-height:1.6;}
+
+/* 버튼: 꽉 찬 너비, 큼직하고 둥글게 */
+.stButton > button, .stDownloadButton > button {
+  border:none; border-radius:16px; min-height:54px; font-size:16px; font-weight:600;
+  background:#FFFFFF; color:#191F28; box-shadow:none; transition:all .15s ease;}
+.stButton > button:hover, .stDownloadButton > button:hover {background:#E8F3FF; color:#1B64DA;}
+.stButton > button:active {transform:scale(.98);}
+.stButton > button p, .stDownloadButton > button p {color:inherit; font-size:16px; font-weight:600;}
+.stButton > button[kind="primary"] {background:#3182F6; color:#fff;}
+.stButton > button[kind="primary"]:hover {background:#1B64DA; color:#fff;}
+.st-key-choice .stButton > button {justify-content:flex-start; text-align:left; padding:0 20px;
+  border:1.5px solid transparent;}
+.st-key-choice .stButton > button:hover {border-color:#3182F6;}
+.st-key-choice .stButton > button > div {justify-content:flex-start; width:100%;}
+.st-key-choice .stButton > button p {text-align:left;}
+
+/* 입력창 */
+[data-testid="stTextInput"] input {font-size:16px; padding:14px 16px;}
+[data-testid="stTextInput"] div[data-baseweb="input"], [data-baseweb="select"] > div {border:none; border-radius:14px;}
+[data-testid="stChatInput"] {border-radius:20px; border:none; box-shadow:0 4px 18px rgba(0,27,55,.08);}
+
+/* 탭: 토스식 세그먼트 컨트롤 */
+[data-testid="stTabs"] [role="tablist"] {background:#E5E8EB; border-radius:14px; padding:4px; gap:2px;
+  border:none; box-shadow:none;}
+[data-testid="stTabs"] [role="tablist"]::after, [data-testid="stTabs"] [role="tablist"]::before {display:none;}
+[data-testid="stTab"] {flex:1; display:flex; justify-content:center; border-radius:11px; padding:9px 6px;
+  color:#6B7684; border:none; cursor:pointer;}
+[data-testid="stTab"] p {font-size:14px; font-weight:600; color:inherit; margin:0; white-space:nowrap;}
+[data-testid="stTab"][aria-selected="true"] {background:#FFFFFF; color:#191F28; box-shadow:0 1px 4px rgba(0,0,0,.06);}
+[data-testid="stTab"] > div[data-rac] {display:none;}
+
+/* 채팅 말풍선, 접는 상자, 지표 */
+[data-testid="stChatMessage"] {background:#FFFFFF; border-radius:20px; padding:14px 16px; margin-bottom:8px;}
+/* 내가 보낸 말은 오른쪽 파란 말풍선 (메신저처럼) */
+[data-testid="stChatMessage"]:has([aria-label="Chat message from user"]) {
+  flex-direction:row-reverse; background:#3182F6; width:fit-content; max-width:85%; margin-left:auto;
+  padding:10px 16px;}
+[data-testid="stChatMessage"]:has([aria-label="Chat message from user"]) > div[aria-hidden="true"] {display:none;}
+[aria-label="Chat message from user"] p {color:#FFFFFF; margin:0;}
+[aria-label="Chat message from user"] .stMarkdown div {margin-bottom:0 !important;}
+[data-testid="stExpander"] details {background:#FFFFFF; border:none; border-radius:16px;}
+[data-testid="stMetric"] {background:#FFFFFF; border-radius:20px; padding:18px 20px;}
+[data-testid="stMetricValue"] {font-weight:800; color:#3182F6;}
+[data-testid="stSidebar"] {border-right:none;}
+
+/* 직접 만든 카드들 */
+.card {border-radius:24px; padding:26px 24px; margin:10px 0 12px 0; background:#3182F6; color:#fff;}
+.card .code {font-size:14px; font-weight:600; letter-spacing:3px; opacity:.8;}
+.card .name {font-size:28px; font-weight:800; margin:6px 0 2px 0; letter-spacing:-0.03em; line-height:1.3;}
+.card .stock {font-size:16px; margin-top:12px; opacity:.95;}
+.card .stock b {background:#fff; color:#1B64DA; padding:4px 12px; border-radius:10px; font-weight:700;}
+.chips {margin:4px 0 8px 0; font-size:13px; color:#6B7684;}
+.chips span {display:inline-block; background:#FFFFFF; color:#4E5968; border-radius:999px;
+             padding:6px 12px; margin:3px 6px 3px 0; font-size:13px; font-weight:600;}
+.box {border-radius:20px; padding:20px 22px; margin:10px 0; background:#FFFFFF; color:#4E5968; line-height:1.65;}
+.box h4 {margin:0 0 8px 0; padding:0; font-size:17px; font-weight:700; color:#191F28;}
+.box.warn h4 {color:#F04452;}
+.box b {color:#191F28;}
+.section {font-size:19px; font-weight:700; color:#191F28; margin:22px 0 8px 2px; letter-spacing:-0.02em;}
+.bars {background:#FFFFFF; border-radius:20px; padding:12px 22px;}
+.bar {display:flex; align-items:center; gap:10px; margin:12px 0; font-size:14px; color:#4E5968;}
+.bar .track {flex:1; height:8px; background:#E5E8EB; border-radius:999px; overflow:hidden;}
+.bar .fill {height:100%; background:#3182F6; border-radius:999px;}
+.bar .lab {width:60px; text-align:center; font-weight:600;}
+.bar .lab.on {color:#3182F6; font-weight:800;}
+.small {font-size:13px; opacity:.75;}
+.stMarkdown code {background:#E8F3FF; color:#1B64DA; border-radius:6px; padding:1px 6px; font-weight:600;
+  font-family:inherit; font-size:.92em;}
+.hero {padding:28px 4px 8px 4px;}
+.hero .emoji {font-size:52px;}
+.hero h2 {font-size:28px; font-weight:800; line-height:1.35; color:#191F28; margin:14px 0 10px 0; letter-spacing:-0.03em;}
+.hero p {color:#6B7684; font-size:16px; margin:0;}
+.qhead {font-size:14px; font-weight:700; color:#3182F6; margin:14px 0 2px 2px;}
+.qtext {font-size:22px; font-weight:800; color:#191F28; line-height:1.4; margin:2px 0 14px 2px; letter-spacing:-0.03em;}
 </style>
 """, unsafe_allow_html=True)
+
+
+def section(title):
+    st.markdown(f"<div class='section'>{title}</div>", unsafe_allow_html=True)
 
 
 def axis_bars_html(answers):
@@ -351,10 +423,11 @@ def axis_bars_html(answers):
     rows = []
     for i, (a, b, an, bn) in enumerate(AXES):
         pa = round(counts[i] / 3 * 100)
-        rows.append(f"<div class='bar'><div class='lab'>{an} {a}</div>"
+        ca, cb = ("lab on", "lab") if pa >= 50 else ("lab", "lab on")
+        rows.append(f"<div class='bar'><div class='{ca}'>{an} {a}</div>"
                     f"<div class='track'><div class='fill' style='width:{pa}%'></div></div>"
-                    f"<div class='lab'>{bn} {b}</div><div style='width:84px'>{pa}% : {100 - pa}%</div></div>")
-    return "".join(rows)
+                    f"<div class='{cb}'>{bn} {b}</div></div>")
+    return "<div class='bars'>" + "".join(rows) + "</div>"
 
 
 def type_card_html(code):
@@ -363,8 +436,8 @@ def type_card_html(code):
             f"<div class='name'>{t['emoji']} {t['name']}</div>"
             f"<div class='stock'>나와 닮은 종목 <b>{t['stock']}</b></div>"
             f"<div class='small' style='margin-top:6px'>{t['kind']}</div></div>"
-            f"<div class='chips'><span>변동성 {t['vol']}</span><span>배당 {t['div']}</span>"
-            f"<span>시장과 {t['mkt']}</span></div>")
+            f"<div class='chips'><span>📊 변동성 {t['vol']}</span><span>💰 배당 {t['div']}</span>"
+            f"<span>🧭 시장과 {t['mkt']}</span></div>")
 
 
 def stock_card_html(name):
@@ -440,6 +513,7 @@ def ask_current():
 def answer(choice):
     """A 또는 B를 고르면 기록하고 다음 질문 또는 결과로 넘어간다."""
     q = QUESTIONS[st.session_state.qi]
+    say("user", f"{choice}) {q[choice][0]}")
     st.session_state.answers.append(q[choice][1])
     st.session_state.qi += 1
     if st.session_state.qi < len(QUESTIONS):
@@ -503,10 +577,14 @@ def free_chat(text):
 # 6. 비밀번호 화면
 # ---------------------------------------------------------------------
 if not st.session_state.authed:
-    st.title("📈 나랑 닮은 종목 찾기")
-    st.caption("12개 질문으로 알아보는 나의 투자 유형 16종")
-    pw = st.text_input("비밀번호를 입력하세요", type="password")
-    if st.button("입장하기", type="primary"):
+    st.markdown("<div class='hero'><div class='emoji'>📈</div>"
+                "<h2>나랑 닮은 종목,<br>12개 질문이면 찾을 수 있어요</h2>"
+                "<p>16가지 투자 유형 중 나는 어디일까요?</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='chips' style='margin:14px 0 22px 2px'><span>🧭 투자 성향 진단</span>"
+                "<span>🔎 닮은 종목 찾기</span><span>💘 투자 궁합</span></div>", unsafe_allow_html=True)
+    pw = st.text_input("비밀번호", type="password", placeholder="비밀번호를 입력해주세요",
+                       label_visibility="collapsed")
+    if st.button("시작하기", type="primary", use_container_width=True):
         if hashlib.sha256(pw.encode()).hexdigest() == PASSWORD_HASH:
             st.session_state.authed = True
             st.rerun()
@@ -543,6 +621,10 @@ if st.session_state.stage == "result":
     # 결과가 나오면 진단 대화는 접어두고 결과 카드를 맨 위에 보여줌
     with st.expander("💬 진단 대화 다시 보기"):
         show(st.session_state.messages)
+elif st.session_state.stage == "quiz":
+    # 지금 질문은 아래 큰 카드로 보여주므로 대화 기록에서는 숨김
+    cur = f"**Q{st.session_state.qi + 1}."
+    show([m for m in st.session_state.messages if not m["content"].startswith(cur)])
 else:
     show(st.session_state.messages)
 
@@ -553,11 +635,15 @@ stage = st.session_state.stage
 
 if stage == "quiz":
     q = QUESTIONS[st.session_state.qi]
-    c1, c2 = st.columns(2)
-    c1.button(f"A) {q['A'][0]}", key=f"a{st.session_state.qi}", use_container_width=True,
-              on_click=answer, args=("A",))
-    c2.button(f"B) {q['B'][0]}", key=f"b{st.session_state.qi}", use_container_width=True,
-              on_click=answer, args=("B",))
+    qi = st.session_state.qi
+    st.progress((qi + 1) / len(QUESTIONS))
+    with st.container(key="choice"):
+        st.markdown(f"<div class='qhead'>{qi + 1} / {len(QUESTIONS)}</div>"
+                    f"<div class='qtext'>{q['q']}</div>", unsafe_allow_html=True)
+        st.button(f"A)  {q['A'][0]}", key=f"a{qi}", use_container_width=True,
+                  on_click=answer, args=("A",))
+        st.button(f"B)  {q['B'][0]}", key=f"b{qi}", use_container_width=True,
+                  on_click=answer, args=("B",))
 
 if stage == "result":
     code = st.session_state.code
@@ -572,7 +658,7 @@ if stage == "result":
             ps = STOCKS[pick]
             st.markdown(stock_card_html(pick), unsafe_allow_html=True)
             st.markdown(f"<div class='box'><h4>🔍 왜 이 유형일까?</h4>{ps['why']}</div>", unsafe_allow_html=True)
-            st.markdown("**종목 성격 풀이**")
+            section("종목 성격 풀이")
             for ch in ps["code"]:
                 st.markdown(f"- `{ch}` {AXIS_DESC[ch]}")
             if ps["code"] == code:
@@ -596,14 +682,14 @@ if stage == "result":
         st.markdown(f"<div class='box'><h4>🔍 왜 닮았을까?</h4>{t['why']}</div>", unsafe_allow_html=True)
         st.markdown(f"<div class='box warn'><h4>⚠️ 이 유형이 조심할 실수</h4>{t['caution']}</div>",
                     unsafe_allow_html=True)
-        st.markdown("**나의 성향 그래프**")
+        section("나의 성향 그래프")
         st.markdown(axis_bars_html(st.session_state.answers), unsafe_allow_html=True)
         st.download_button("📥 결과 저장하기 (txt)",
                            data=(f"[나랑 닮은 종목 찾기 결과]\n닉네임: {st.session_state.nick}\n"
                                  f"유형: {code} {t['name']}\n닮은 종목: {t['stock']}\n\n왜 닮았을까: {t['why']}\n\n"
                                  f"조심할 실수: {t['caution']}\n\n환상의 짝꿍: {best_match(code)} "
                                  f"{TYPES[best_match(code)]['name']}\n"),
-                           file_name=f"my_type_{code}.txt")
+                           file_name=f"my_type_{code}.txt", use_container_width=True)
     with tab2:
         bm, tw = best_match(code), twin(code)
         st.markdown(f"<div class='box'><h4>💞 환상의 짝꿍 · {bm} {TYPES[bm]['emoji']} {TYPES[bm]['name']}</h4>"
@@ -612,7 +698,7 @@ if stage == "result":
         st.markdown(f"<div class='box warn'><h4>👯 쌍둥이 · {tw} {TYPES[tw]['emoji']} {TYPES[tw]['name']}</h4>"
                     f"{t['stock']} + <b>{TYPES[tw]['stock']}</b><br>방향·위험·형태가 모두 같아서 같이 웃고 같이 울어. "
                     f"둘 다 들고 있으면 분산 효과가 작아.</div>", unsafe_allow_html=True)
-        st.markdown("**친구와 궁합 보기**")
+        section("친구와 궁합 보기")
         friend = st.selectbox("친구의 유형을 골라줘", list(TYPES.keys()),
                               format_func=lambda c: f"{c} · {TYPES[c]['name']} ({TYPES[c]['stock']})")
         s, label, reasons = compat(code, friend)
@@ -626,8 +712,7 @@ if stage == "result":
                 st.markdown(f"{tt['why']}\n\n**변동성** {tt['vol']} · **배당** {tt['div']} · **시장과** {tt['mkt']}")
                 st.markdown(f"⚠️ {tt['caution']}")
 
-    st.divider()
-    st.markdown("**💬 무엇이든 물어봐**")
+    section("💬 무엇이든 물어봐")
     show(st.session_state.chat)
 
 # ---------------------------------------------------------------------

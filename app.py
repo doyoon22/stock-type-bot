@@ -16,6 +16,7 @@ import hashlib
 import re
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="나랑 닮은 종목 찾기", page_icon="📈", layout="centered")
 
@@ -523,6 +524,7 @@ def answer(choice):
         st.session_state.code = code
         t = TYPES[code]
         st.session_state.stage = "result"
+        st.session_state.just_done = True    # 결과 화면을 처음 그릴 때 맨 위로 스크롤하기 위한 표시
         say("assistant", f"🎉 **{st.session_state.nick}님의 투자 유형은 `{code}` · {t['emoji']} {t['name']}!** "
                          f"너와 가장 닮은 종목은 **{t['stock']}**이야.\n\n"
                          f"궁금한 건 자유롭게 물어봐. 예) `테슬라 어때?`, `궁합 COBN`, `도감`, `인버스가 뭐야?`, `다시`")
@@ -713,6 +715,25 @@ if stage == "result":
                 st.markdown(f"⚠️ {tt['caution']}")
 
     section("💬 무엇이든 물어봐")
+
+    if st.session_state.pop("just_done", False):
+        # 진단이 막 끝났을 때 한 번만: 화면을 맨 위(결과 카드)로 올리고 완료 알림
+        st.toast(f"🎉 {st.session_state.nick}님의 결과가 나왔어요!")
+        components.html("""
+<script>
+// 채팅 앱은 <main>(stAppScrollToBottomContainer)이 스크롤되고, 화면이 그려지는 동안
+// 자동으로 맨 아래로 다시 붙기 때문에 약 2초간 맨 위를 유지한다 (사용자가 스크롤하면 즉시 중단).
+const doc = window.parent.document;
+let stop = false;
+['wheel', 'touchstart', 'keydown'].forEach(ev =>
+  doc.addEventListener(ev, () => { stop = true; }, {once: true, passive: true}));
+const start = Date.now();
+const timer = setInterval(() => {
+  if (stop || Date.now() - start > 2000) { clearInterval(timer); return; }
+  window.parent.scrollTo(0, 0);
+  doc.querySelectorAll('main, section').forEach(el => { if (el.scrollTop > 0) el.scrollTop = 0; });
+}, 100);
+</script>""", height=0)
     show(st.session_state.chat)
 
 # ---------------------------------------------------------------------

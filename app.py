@@ -4,7 +4,7 @@
 # 구성
 #   1) 비밀번호 확인 → 2) 닉네임 → 3) 12문항 대화형 진단 (4개 축 × 3문항)
 #   4) 결과: 16유형 중 하나 + 닮은 종목 + 조심할 실수 + 투자 궁합
-#   5) 자유 대화: 궁합 비교, 유형 도감, 투자 용어 설명 (키워드 규칙 기반)
+#   5) 자유 대화: 종목명 검색(닮은 유형·나와의 궁합), 궁합 비교, 유형 도감, 투자 용어 설명 (키워드 규칙 기반)
 #
 # 4개 축
 #   방향  M(대세: 남들 벌 때 같이)  / C(역발상: 남들 잃을 때 나만)
@@ -31,8 +31,8 @@ QUESTIONS = [
      "A": ("지금이라도 같이 탄다", "M"), "B": ("이미 늦었어, 다른 데를 본다", "C")},
     {"axis": 0, "q": "시장이 폭락해서 뉴스가 온통 공포 분위기야. 너는?",
      "A": ("일단 팔고 상황을 지켜본다", "M"), "B": ("오히려 싸게 살 기회다", "C")},
-    {"axis": 0, "q": "둘 중 더 기분 좋은 상황은?",
-     "A": ("남들 다 벌 때 나도 같이 번 것", "M"), "B": ("남들 다 잃을 때 나만 번 것", "C")},
+    {"axis": 0, "q": "투자할 종목을 찾을 때 주로 보는 곳은?",
+     "A": ("많이 본 뉴스, 인기 종목 순위", "M"), "B": ("아무도 관심 없는 종목 분석", "C")},
     # 위험: D / O
     {"axis": 1, "q": "100만 원을 1년 투자한다면 어느 쪽?",
      "A": ("확실하게 105만 원", "D"), "B": ("반반 확률로 140만 원 또는 80만 원", "O")},
@@ -43,13 +43,13 @@ QUESTIONS = [
     # 형태: F / B
     {"axis": 2, "q": "식당을 차린다면 어떤 가게?",
      "A": ("메뉴 하나로 승부하는 전문점", "F"), "B": ("메뉴 여러 개인 든든한 백반집", "B")},
-    {"axis": 2, "q": "투자 공부에 쓸 시간이 생기면?",
-     "A": ("한 회사를 깊게 파고든다", "F"), "B": ("고르기 귀찮다, 알아서 섞어줘", "B")},
+    {"axis": 2, "q": "투자 공부를 한다면 어떤 방식이 끌려?",
+     "A": ("한 회사의 사업을 깊게 파고든다", "F"), "B": ("여러 산업의 흐름을 넓게 훑어본다", "B")},
     {"axis": 2, "q": "확신이 드는 종목을 찾았어.",
      "A": ("비중을 크게 싣는다", "F"), "B": ("그래도 여러 개로 나눠 담는다", "B")},
     # 근거: N / V
     {"axis": 3, "q": "종목을 고를 때 제일 먼저 보는 건?",
-     "A": ("실적, 배당, PER 같은 숫자", "N"), "B": ("CEO의 비전과 미래 이야기", "V")},
+     "A": ("실적, 배당, PER 같은 숫자", "N"), "B": ("CEO와 브랜드 같은 기업 이미지", "V")},
     {"axis": 3, "q": "둘 중 더 설레는 뉴스는?",
      "A": ("분기 영업이익 30% 증가", "N"), "B": ("화성에 공장을 짓겠다", "V")},
     {"axis": 3, "q": "친구에게 종목을 추천한다면?",
@@ -58,14 +58,6 @@ QUESTIONS = [
 
 AXES = [("M", "C", "대세", "역발상"), ("D", "O", "수비", "공격"),
         ("F", "B", "집중", "분산"), ("N", "V", "숫자", "스토리")]
-
-# 선택 직후 봇이 보내는 짧은 반응 (글자별)
-REACTIONS = {
-    "M": "흐름을 타는 감각이 있네 🌊", "C": "남들과 반대로 가는 배짱이 보여 🦅",
-    "D": "원금을 지키는 신중함, 좋아 🛡️", "O": "승부사 기질이 느껴지는데? 🔥",
-    "F": "한 놈만 판다… 확신형이구나 🎯", "B": "달걀은 한 바구니에 안 담는 타입 🧺",
-    "N": "숫자로 말하는 냉정함 📊", "V": "이야기에 설레는 낭만파 ✨",
-}
 
 # ---------------------------------------------------------------------
 # 2. 16개 유형 데이터
@@ -152,7 +144,124 @@ FAQ = {
     ("군집", "군중", "포모", "fomo"): "군집행동은 남들이 사니까 따라 사는 심리야. 대세(M) 성향이 강할수록 고점에서 따라 들어가는 걸 조심해야 해.",
 }
 
-AXIS_NAMES = ["방향", "위험", "형태", "근거"]
+# ---------------------------------------------------------------------
+# 2-1. 종목 성격 사전: 종목명을 입력하면 그 종목이 16유형 중 어디와 닮았는지 알려줌
+#      code: 4자리 유형, kind: 분류, alias: 검색용 다른 이름, why: 그렇게 분류한 이유
+#      ※ 성향을 재미있게 비유한 것이며 종목 평가·추천이 아님
+# ---------------------------------------------------------------------
+STOCKS = {
+    # 16유형 대표 종목
+    "KB금융": dict(code="MDFN", kind="국내 주식 · 은행지주", alias=("kb", "kb금융지주", "국민은행"),
+                 why="꾸준한 이자 이익을 배당과 자사주로 주주에게 돌려주는 대표 금융주야."),
+    "삼성전자": dict(code="MDFV", kind="국내 주식 · 반도체", alias=("삼전", "samsung"),
+                 why="소액주주가 가장 많은 국민주. '반도체 1등'이라는 이야기에 모두가 기대를 거는 종목이야."),
+    "SCHD": dict(code="MDBN", kind="미국 ETF · 배당성장", alias=("슈드", "미국배당etf", "미국배당다우존스"),
+                 why="배당을 꾸준히 늘려온 미국 우량 기업들을 숫자 기준으로 골라 담은 ETF야."),
+    "S&P500 ETF": dict(code="MDBV", kind="미국 ETF · 지수", alias=("s&p500", "s&p", "sp500", "spy", "voo", "ivv", "에스앤피"),
+                       why="미국 대형주 500개를 통째로 담아 '미국은 결국 오른다'는 이야기에 베팅하는 상품이야."),
+    "엔비디아": dict(code="MOFN", kind="미국 주식 · AI 반도체", alias=("nvidia", "nvda"),
+                 why="AI 반도체 수요로 폭발한 실적이 주가를 끌어올린 시장 주도주야."),
+    "테슬라": dict(code="MOFV", kind="미국 주식 · 전기차", alias=("tesla", "tsla"),
+                why="전기차·자율주행·로봇이라는 비전으로 움직이는 대표 스토리 주식이야."),
+    "KODEX 레버리지": dict(code="MOBN", kind="국내 ETF · 코스피200 2배", alias=("코덱스레버리지", "코스피레버리지"),
+                       why="코스피200 하루 수익률의 2배를 따라가, 오를 거라 계산되면 상승을 두 배로 먹으려는 상품이야."),
+    "2차전지 테마 ETF": dict(code="MOBV", kind="국내 ETF · 테마", alias=("2차전지", "이차전지"),
+                        why="전기차 시대라는 뜨거운 이야기에 관련 종목을 바구니째 올라타는 상품이야."),
+    "버크셔 해서웨이": dict(code="CDFN", kind="미국 주식 · 지주회사", alias=("버크셔", "berkshire", "brk", "워런버핏", "버핏"),
+                     why="남들이 두려워할 때 숫자로 저평가를 찾아 사는 워런 버핏의 회사야."),
+    "한국전력": dict(code="CDFV", kind="국내 주식 · 공기업", alias=("한전", "kepco"),
+                 why="전기요금 정상화라는 '언젠가'의 이야기에 따라 움직이는 공기업이야."),
+    "TLT": dict(code="CDBN", kind="미국 ETF · 장기국채", alias=("미국장기채", "장기국채", "미국채"),
+                why="금리가 내려가면 가격이 오르는 구조라, 위기 때 금리를 계산하는 투자자가 찾는 상품이야."),
+    "금 ETF": dict(code="CDBV", kind="원자재 ETF · 금", alias=("금현물", "골드", "gld", "iau"),
+                  why="'위기엔 금'이라는 수천 년 된 이야기를 믿고 자산을 지키는 상품이야."),
+    "카카오": dict(code="COFN", kind="국내 주식 · 플랫폼", alias=("kakao",),
+                why="고점 대비 크게 떨어진 국민 성장주라, 숫자로 반등 가능성을 따져보는 투자자가 많아."),
+    "알리바바": dict(code="COFV", kind="미국 상장 중국 주식 · 플랫폼", alias=("alibaba", "baba"),
+                 why="규제로 급락했던 중국 대표 플랫폼. '몰락한 왕의 귀환'에 거는 종목이야."),
+    "KODEX 인버스": dict(code="COBN", kind="국내 ETF · 코스피200 -1배", alias=("코덱스인버스", "코스피인버스"),
+                      why="코스피200이 떨어지면 수익이 나는, 남들과 반대로 가는 상품이야."),
+    "KODEX 200선물인버스2X": dict(code="COBV", kind="국내 ETF · 코스피200 -2배", alias=("인버스2x", "선물인버스2x", "코덱스곱버스"),
+                              why="곧 폭락이 온다는 시나리오에 두 배로 베팅하는 일명 '곱버스'야."),
+    # 많이 찾는 인기 종목
+    "SK하이닉스": dict(code="MOFN", kind="국내 주식 · 메모리 반도체", alias=("하이닉스", "hynix"),
+                    why="AI 서버용 고대역폭 메모리(HBM) 실적으로 주목받은 반도체 주도주야."),
+    "애플": dict(code="MDFV", kind="미국 주식 · IT 기기", alias=("apple", "aapl", "아이폰"),
+               why="전 세계가 아는 브랜드와 충성 고객이라는 이야기를 가진 초대형 우량주야."),
+    "마이크로소프트": dict(code="MDFN", kind="미국 주식 · 소프트웨어·클라우드", alias=("microsoft", "msft", "마소"),
+                    why="클라우드와 소프트웨어 구독으로 꾸준히 버는, 숫자가 탄탄한 대형주야."),
+    "구글": dict(code="MDFN", kind="미국 주식 · 검색·광고", alias=("알파벳", "google", "googl", "alphabet", "유튜브"),
+               why="검색 광고와 유튜브로 매년 막대한 현금을 버는, 실적이 탄탄한 빅테크야."),
+    "아마존": dict(code="MOFN", kind="미국 주식 · 이커머스·클라우드", alias=("amazon", "amzn"),
+                why="온라인 쇼핑과 클라우드(AWS)라는 두 엔진의 성장 실적으로 평가받는 빅테크야."),
+    "메타": dict(code="MOFN", kind="미국 주식 · SNS·광고", alias=("meta", "페이스북", "인스타그램"),
+               why="광고 실적 회복과 비용 절감을 숫자로 증명하며 반등했던 빅테크야."),
+    "팔란티어": dict(code="MOFV", kind="미국 주식 · AI 소프트웨어", alias=("palantir", "pltr"),
+                 why="AI·데이터 분석이라는 비전과 열성 팬덤으로 크게 출렁이는 종목이야."),
+    "인텔": dict(code="COFV", kind="미국 주식 · 반도체", alias=("intel", "intc"),
+               why="한때 반도체의 왕이었지만 경쟁에서 밀린 뒤 '부활'을 기대하는 투자자들이 지켜보는 종목이야."),
+    "코카콜라": dict(code="MDFN", kind="미국 주식 · 음료", alias=("cocacola", "coca-cola", "코크"),
+                 why="경기가 나빠도 사람들은 콜라를 마시지. 오랫동안 배당을 늘려온 대표 방어주야."),
+    "리얼티인컴": dict(code="MDFN", kind="미국 주식 · 리츠(월배당)", alias=("리얼티", "월배당리츠"),
+                  why="'월배당 회사'라는 별명처럼 임대료 수입으로 매달 배당을 주는 부동산 리츠야."),
+    "현대차": dict(code="CDFN", kind="국내 주식 · 자동차", alias=("현대자동차", "hyundai"),
+                why="이익에 비해 주가가 낮다는 평가를 자주 받아, 숫자로 저평가를 찾는 투자자가 주목하는 종목이야."),
+    "네이버": dict(code="COFN", kind="국내 주식 · 플랫폼", alias=("naver",),
+                why="고점 대비 많이 떨어진 국내 대표 성장주라, 실적 대비 반등 여부를 따져보는 투자자가 많아."),
+    "카카오뱅크": dict(code="COFV", kind="국내 주식 · 인터넷은행", alias=("카뱅",),
+                  why="상장 직후 큰 기대를 받았다가 내려온 뒤, 인터넷은행의 성장 이야기에 다시 거는 종목이야."),
+    "LG에너지솔루션": dict(code="MOFV", kind="국내 주식 · 2차전지", alias=("엘지엔솔", "lg엔솔", "엔솔"),
+                       why="전기차 시대라는 큰 이야기를 대표하는 국내 2차전지 대장주야."),
+    "에코프로": dict(code="MOFV", kind="국내 주식 · 2차전지 소재", alias=("ecopro",),
+                 why="2차전지 열풍 때 개인투자자가 몰리며 크게 출렁였던 대표 테마주야."),
+    "셀트리온": dict(code="MOFV", kind="국내 주식 · 바이오", alias=("celltrion",),
+                 why="바이오시밀러로 세계 시장을 넓힌다는 이야기와 개인투자자의 큰 관심을 받는 바이오 대표주야."),
+    "한화에어로스페이스": dict(code="MOFN", kind="국내 주식 · 방산", alias=("한화에어로",),
+                       why="해외 방산 수출 실적이 숫자로 증명되며 주목받은 종목이야."),
+    "KODEX 200": dict(code="MDBN", kind="국내 ETF · 코스피200", alias=("코스피200", "코덱스200", "코스피etf"),
+                      why="국내 대표 기업 200개를 묶어 한국 시장 전체를 사는 가장 기본적인 ETF야."),
+    "나스닥100 ETF": dict(code="MOBV", kind="미국 ETF · 기술주 지수", alias=("나스닥", "qqq", "qqqm", "나스닥100"),
+                       why="미국 대표 기술주 100개를 담아 '기술이 세상을 바꾼다'는 이야기에 바구니째 타는 상품이야."),
+    "TQQQ": dict(code="MOBN", kind="미국 ETF · 나스닥100 3배", alias=(),
+                 why="나스닥100 하루 수익률의 3배를 따라가는 고위험 레버리지 ETF야."),
+    "JEPI": dict(code="MDBN", kind="미국 ETF · 커버드콜", alias=("커버드콜",),
+                 why="주가 상승 일부를 포기하는 대신 매달 꾸준한 분배금을 받도록 설계된 ETF야."),
+    "비트코인": dict(code="MOFV", kind="가상자산 (주식 아님)", alias=("bitcoin", "btc"),
+                 why="'디지털 금'이라는 이야기와 아주 큰 변동성으로 움직이는 대표 가상자산이야."),
+}
+
+# 축 글자별로 종목 성격을 풀어서 설명
+AXIS_DESC = {
+    "M": "시장의 인기 흐름과 함께 움직이는 **대세형**",
+    "C": "시장이 외면하거나 반대로 갈 때 빛나는 **역발상형**",
+    "D": "덜 출렁이고 지키는 힘이 있는 **수비형**",
+    "O": "크게 오르내리는 **공격형**",
+    "F": "한 회사에 모든 게 걸린 **집중형** (단일 종목)",
+    "B": "여러 자산을 묶은 **분산형** (바구니 상품)",
+    "N": "실적·배당·금리 같은 **숫자**로 평가받는 편",
+    "V": "비전과 **스토리**로 기대를 모으는 편",
+}
+
+# 검색용 별칭 목록: (정규화된 별칭, 종목명), 긴 별칭부터 검사해서 '카카오뱅크'가 '카카오'로 잘못 잡히지 않게 함
+ALIASES = sorted(
+    {(re.sub(r"\s", "", a.lower()), name)
+     for name, s in STOCKS.items() for a in (name, *s["alias"])},
+    key=lambda x: -len(x[0]))
+
+
+def find_stock(text):
+    """문장 속에서 사전에 있는 종목명을 찾아 돌려준다 (없으면 None)."""
+    low = text.lower()
+    flat = re.sub(r"\s", "", low)
+    for alias, name in ALIASES:
+        if re.fullmatch(r"[a-z0-9&\-]+", alias):
+            # 영문 티커는 단어 경계로만 인식 (예: 'spy'가 다른 단어 속에서 잡히지 않게)
+            pat = rf"(?<![a-z0-9]){re.escape(alias)}(?![a-z0-9])"
+            if re.search(pat, low) or re.search(pat, flat):
+                return name
+        elif alias in flat:
+            return name
+    return None
 
 
 # ---------------------------------------------------------------------
@@ -258,6 +367,38 @@ def type_card_html(code):
             f"<span>시장과 {t['mkt']}</span></div>")
 
 
+def stock_card_html(name):
+    s = STOCKS[name]
+    t = TYPES[s["code"]]
+    return (f"<div class='card'><div class='small' style='opacity:.85'>{s['kind']}</div>"
+            f"<div class='name'>{name}</div>"
+            f"<div class='stock'>닮은 유형 <b>{s['code']} · {t['emoji']} {t['name']}</b></div></div>")
+
+
+def same_type_stocks(name):
+    code = STOCKS[name]["code"]
+    return [n for n, s in STOCKS.items() if s["code"] == code and n != name]
+
+
+def describe_stock(name, my_code):
+    """채팅용: 종목의 성격 유형 + 축별 풀이 + 나와의 궁합"""
+    s = STOCKS[name]
+    code = s["code"]
+    t = TYPES[code]
+    lines = [f"🔎 **{name}** ({s['kind']})는 `{code}` · {t['emoji']} **{t['name']}** 유형과 닮았어!\n",
+             s["why"], ""]
+    lines += [f"- {c} : {AXIS_DESC[c]}" for c in code]
+    if code == my_code:
+        lines.append(f"\n🪞 너랑 **완전히 같은 유형**이야! 성격이 똑같아서 끌리겠지만, "
+                     f"같은 유형끼리만 모으면 분산 효과가 작다는 것도 기억해.")
+    else:
+        sc, label, reasons = compat(my_code, code)
+        lines.append(f"\n💘 너(`{my_code}`)와 이 종목의 궁합 **{sc} / 5** · {label}")
+        lines += [f"- {r}" for r in reasons]
+    lines.append("\n※ 성격을 비유한 것일 뿐 매수·매도 추천이 아니야.")
+    return "\n".join(lines)
+
+
 def describe_type(code):
     t = TYPES[code]
     return f"**{code} · {t['emoji']} {t['name']}** — 닮은 종목: **{t['stock']}**\n\n{t['why']}"
@@ -299,16 +440,8 @@ def ask_current():
 def answer(choice):
     """A 또는 B를 고르면 기록하고 다음 질문 또는 결과로 넘어간다."""
     q = QUESTIONS[st.session_state.qi]
-    text, letter = q[choice]
-    say("user", f"{choice}) {text}")
-    st.session_state.answers.append(letter)
+    st.session_state.answers.append(q[choice][1])
     st.session_state.qi += 1
-    # 축의 마지막(3번째) 질문을 끝낼 때마다 반응 한마디
-    if st.session_state.qi % 3 == 0:
-        axis = q["axis"]
-        counts = score_axes(st.session_state.answers)
-        lead = AXES[axis][0] if counts[axis] >= 2 else AXES[axis][1]
-        say("assistant", f"{AXIS_NAMES[axis]} 성향 체크 완료! {REACTIONS[lead]}")
     if st.session_state.qi < len(QUESTIONS):
         ask_current()
     else:
@@ -318,7 +451,7 @@ def answer(choice):
         st.session_state.stage = "result"
         say("assistant", f"🎉 **{st.session_state.nick}님의 투자 유형은 `{code}` · {t['emoji']} {t['name']}!** "
                          f"너와 가장 닮은 종목은 **{t['stock']}**이야.\n\n"
-                         f"궁금한 건 자유롭게 물어봐. 예) `궁합 COBN`, `도감`, `인버스가 뭐야?`, `다시`")
+                         f"궁금한 건 자유롭게 물어봐. 예) `테슬라 어때?`, `궁합 COBN`, `도감`, `인버스가 뭐야?`, `다시`")
 
 
 def free_chat(text):
@@ -346,14 +479,22 @@ def free_chat(text):
         c = st.session_state.code
         return (f"`궁합 코드` 형식으로 입력해줘. 예) `궁합 {best_match(c)}`\n\n"
                 f"참고로 너의 환상의 짝꿍은 `{best_match(c)}`({TYPES[best_match(c)]['name']})야.")
+    stock = find_stock(raw)
+    if stock:
+        return describe_stock(stock, st.session_state.code)
     for keys, ans in FAQ.items():
         if any(k in low for k in keys):
             return "💡 " + ans
+    if any(k in raw for k in ("어때", "무슨 유형", "어떤 유형", "닮았", "성격")):
+        examples = ", ".join(list(STOCKS)[16:26])
+        return ("그 종목은 아직 내 사전에 없어 😅 지금은 이런 종목들을 알고 있어:\n\n"
+                f"{examples} 등 {len(STOCKS)}개\n\n전체 목록은 위의 **🔎 종목 궁합** 탭에서 검색해봐!")
     if "종목" in raw or "추천" in raw:
         c = st.session_state.code
         return (f"너와 닮은 종목은 **{TYPES[c]['stock']}**이야. 다만 이건 성향이 닮았다는 뜻이지 매수 추천이 아니야. "
                 f"투자 결정은 꼭 스스로 따져보고 해줘 🙏")
     return ("음, 그건 아직 내가 모르는 질문이야 😅 이렇게 물어봐 줄래?\n\n"
+            "- `애플`, `삼성전자`, `비트코인` → 종목 이름으로 닮은 유형·나와의 궁합\n"
             "- `궁합 COBN` → 친구 유형과 궁합\n- `도감` → 16유형 전체 보기\n- `MDFV` → 유형 설명\n"
             "- `인버스`, `레버리지`, `ETF`, `배당`, `분산투자`, `손실회피` → 용어 설명\n- `다시` → 처음부터")
 
@@ -421,7 +562,35 @@ if stage == "quiz":
 if stage == "result":
     code = st.session_state.code
     t = TYPES[code]
-    tab1, tab2, tab3 = st.tabs(["🧾 내 결과", "💘 투자 궁합", "📚 유형 도감"])
+    tab1, tab4, tab2, tab3 = st.tabs(["🧾 내 결과", "🔎 종목 궁합", "💘 투자 궁합", "📚 유형 도감"])
+    with tab4:
+        st.caption("궁금한 종목을 검색하면 그 종목이 16유형 중 누구와 닮았는지, 그리고 나와 궁합이 맞는지 알려줘.")
+        pick = st.selectbox("종목 검색", list(STOCKS), index=None,
+                            placeholder="종목 이름을 입력해봐 (예: 애플, 삼성전자, 비트코인)",
+                            format_func=lambda n: f"{n} · {STOCKS[n]['kind']}")
+        if pick:
+            ps = STOCKS[pick]
+            st.markdown(stock_card_html(pick), unsafe_allow_html=True)
+            st.markdown(f"<div class='box'><h4>🔍 왜 이 유형일까?</h4>{ps['why']}</div>", unsafe_allow_html=True)
+            st.markdown("**종목 성격 풀이**")
+            for ch in ps["code"]:
+                st.markdown(f"- `{ch}` {AXIS_DESC[ch]}")
+            if ps["code"] == code:
+                st.success(f"🪞 {st.session_state.nick}님과 완전히 같은 유형이야! "
+                           f"끌리는 이유가 있지만, 같은 성격끼리만 모으면 분산 효과가 작아.")
+            else:
+                s_, label_, reasons_ = compat(code, ps["code"])
+                st.metric(f"{st.session_state.nick}님({code})과의 궁합", f"{s_} / 5", label_)
+                for r in reasons_:
+                    st.markdown(f"- {r}")
+            others = same_type_stocks(pick)
+            if others:
+                st.markdown("<div class='chips'>같은 유형 종목 " +
+                            "".join(f"<span>{n}</span>" for n in others) + "</div>",
+                            unsafe_allow_html=True)
+            st.caption("※ 종목의 성격을 비유한 것일 뿐, 매수·매도 추천이 아닙니다.")
+        else:
+            st.markdown(f"지금 **{len(STOCKS)}개** 종목을 알고 있어. 채팅창에 `테슬라 어때?`처럼 물어봐도 돼!")
     with tab1:
         st.markdown(type_card_html(code), unsafe_allow_html=True)
         st.markdown(f"<div class='box'><h4>🔍 왜 닮았을까?</h4>{t['why']}</div>", unsafe_allow_html=True)
@@ -465,7 +634,7 @@ if stage == "result":
 # 10. 채팅 입력창 (단계에 따라 해석이 달라짐)
 # ---------------------------------------------------------------------
 placeholder = {"name": "닉네임을 입력해줘", "quiz": "A 또는 B를 입력하거나 버튼을 눌러줘",
-               "result": "예) 궁합 COBN / 도감 / 인버스가 뭐야? / 다시"}[stage]
+               "result": "예) 애플 어때? / 궁합 COBN / 도감 / 인버스가 뭐야? / 다시"}[stage]
 text = st.chat_input(placeholder)
 if text:
     if stage == "name":

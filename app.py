@@ -352,6 +352,9 @@ p, li {color:#333D4B; line-height:1.6;}
 .st-key-choice .stButton > button:hover {border-color:#3182F6;}
 .st-key-choice .stButton > button > div {justify-content:flex-start; width:100%;}
 .st-key-choice .stButton > button p {text-align:left;}
+.st-key-back .stButton > button {background:transparent; min-height:40px; padding:0 6px; color:#6B7684;}
+.st-key-back .stButton > button p {font-size:14px; font-weight:500;}
+.st-key-back .stButton > button:hover {background:#E5E8EB; color:#191F28;}
 
 /* 입력창 */
 [data-testid="stTextInput"] input {font-size:16px; padding:14px 16px;}
@@ -487,6 +490,7 @@ def reset():
     st.session_state.stage = "name"          # name → quiz → result
     st.session_state.qi = 0                  # 현재 질문 번호
     st.session_state.answers = []            # 고른 글자 목록
+    st.session_state.marks = []              # 답할 때마다의 대화 길이 (이전 질문으로 되돌리기용)
     st.session_state.nick = ""
     st.session_state.chat = []               # 진단이 끝난 뒤 자유 대화 기록
     st.session_state.messages = [
@@ -516,6 +520,8 @@ def ask_current():
 def answer(choice):
     """A 또는 B를 고르면 기록하고 다음 질문 또는 결과로 넘어간다."""
     q = QUESTIONS[st.session_state.qi]
+    # 되돌리기용: 이 답을 하기 직전의 대화 길이를 기억해둠
+    st.session_state.setdefault("marks", []).append(len(st.session_state.messages))
     say("user", f"{choice}) {q[choice][0]}")
     st.session_state.answers.append(q[choice][1])
     st.session_state.qi += 1
@@ -530,6 +536,16 @@ def answer(choice):
         say("assistant", f"🎉 **{st.session_state.nick}님의 투자 유형은 `{code}` · {t['emoji']} {t['name']}!** "
                          f"너와 가장 닮은 종목은 **{t['stock']}**이야.\n\n"
                          f"궁금한 건 자유롭게 물어봐. 예) `테슬라 어때?`, `궁합 COBN`, `도감`, `인버스가 뭐야?`, `다시`")
+
+
+def go_back():
+    """직전 질문으로 돌아가기: 마지막 답과 그 뒤에 쌓인 대화를 지운다."""
+    marks = st.session_state.get("marks", [])
+    if not marks or st.session_state.qi == 0:
+        return
+    st.session_state.messages = st.session_state.messages[:marks.pop()]
+    st.session_state.answers.pop()
+    st.session_state.qi -= 1
 
 
 def free_chat(text):
@@ -652,6 +668,9 @@ if stage == "quiz":
                   on_click=answer, args=("A",))
         st.button(f"B)  {q['B'][0]}", key=f"b{qi}", use_container_width=True,
                   on_click=answer, args=("B",))
+    if qi > 0:
+        with st.container(key="back"):
+            st.button("← 이전 질문 다시 고르기", key=f"back{qi}", on_click=go_back)
 
 if stage == "result":
     code = st.session_state.code
@@ -762,9 +781,12 @@ if text:
             answer("A")
         elif t2 in ("B", "2", "비"):
             answer("B")
+        elif t2 in ("이전", "뒤로", "취소", "BACK") and st.session_state.qi > 0:
+            go_back()
         else:
             say("user", text)
-            say("assistant", "지금은 **A** 또는 **B**로만 답할 수 있어. 위 질문을 다시 확인해줘 🙏")
+            say("assistant", "지금은 **A** 또는 **B**로만 답할 수 있어. 위 질문을 다시 확인해줘 🙏\n\n"
+                             "앞 질문을 다시 고르고 싶으면 `이전`이라고 입력해줘.")
     else:
         say("user", text)
         reply = free_chat(text)

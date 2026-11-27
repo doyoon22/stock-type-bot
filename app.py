@@ -1,5 +1,5 @@
 # =====================================================================
-# 나랑 닮은 종목 찾기 — 투자 유형 16종 진단 챗봇 (Streamlit, 규칙 기반)
+# 투자성향 MBTI (나랑 닮은 종목 찾기) — 투자 유형 16종 진단 챗봇 (Streamlit, 규칙 기반)
 #
 # 구성
 #   1) 비밀번호 확인 → 2) 닉네임 → 3) 12문항 대화형 진단 (4개 축 × 3문항)
@@ -18,7 +18,7 @@ import re
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="나랑 닮은 종목 찾기", page_icon="📈", layout="centered")
+st.set_page_config(page_title="투자성향 MBTI · 나랑 닮은 종목 찾기", page_icon="📈", layout="centered")
 
 # 비밀번호는 원문 대신 SHA-256 해시로만 저장 (공개 저장소에 올려도 비밀번호가 드러나지 않음)
 PASSWORD_HASH = "673e2c891578b2eee583e6db47ce41eb744198505afb4253142ea3902b23f3c5"
@@ -409,6 +409,8 @@ p, li {color:#333D4B; line-height:1.6;}
 .hero .emoji {font-size:52px;}
 .hero h2 {font-size:28px; font-weight:800; line-height:1.35; color:#191F28; margin:14px 0 10px 0; letter-spacing:-0.03em;}
 .hero p {color:#6B7684; font-size:16px; margin:0;}
+.hero h2 {margin-bottom:4px;}
+.subtitle {font-size:17px; font-weight:700; color:#3182F6; letter-spacing:-0.02em; margin-bottom:10px;}
 .qhead {font-size:14px; font-weight:700; color:#3182F6; margin:14px 0 2px 2px;}
 .qtext {font-size:22px; font-weight:800; color:#191F28; line-height:1.4; margin:2px 0 14px 2px; letter-spacing:-0.03em;}
 </style>
@@ -580,8 +582,10 @@ def free_chat(text):
 # ---------------------------------------------------------------------
 if not st.session_state.authed:
     st.markdown("<div class='hero'><div class='emoji'>📈</div>"
-                "<h2>나랑 닮은 종목,<br>12개 질문이면 찾을 수 있어요</h2>"
-                "<p>16가지 투자 유형 중 나는 어디일까요?</p></div>", unsafe_allow_html=True)
+                "<h2>투자성향 MBTI</h2>"
+                "<div class='subtitle'>나랑 닮은 종목 찾기</div>"
+                "<p>12개 질문으로 16가지 투자 유형 중 나는 어디인지 알아봐요</p></div>",
+                unsafe_allow_html=True)
     st.markdown("<div class='chips' style='margin:14px 0 22px 2px'><span>🧭 투자 성향 진단</span>"
                 "<span>🔎 닮은 종목 찾기</span><span>💘 투자 궁합</span></div>", unsafe_allow_html=True)
     pw = st.text_input("비밀번호", type="password", placeholder="비밀번호를 입력해주세요",
@@ -598,7 +602,7 @@ if not st.session_state.authed:
 # 7. 사이드바: 진행률, 다시하기, 안내
 # ---------------------------------------------------------------------
 with st.sidebar:
-    st.header("📈 닮은 종목 찾기")
+    st.header("📈 투자성향 MBTI")
     done = len(st.session_state.answers)
     st.progress(done / len(QUESTIONS), text=f"진행률 {done} / {len(QUESTIONS)}")
     if st.button("🔄 처음부터 다시", use_container_width=True):
@@ -608,7 +612,9 @@ with st.sidebar:
                 "- 형태: 집중 F / 분산 B\n- 근거: 숫자 N / 스토리 V")
     st.caption("※ 이 서비스는 투자 성향을 재미있게 알아보는 교육용 콘텐츠이며, 특정 종목의 매수·매도를 권유하지 않습니다.")
 
-st.title("📈 나랑 닮은 종목 찾기")
+st.title("📈 투자성향 MBTI")
+st.markdown("<div class='subtitle' style='margin:-14px 0 16px 2px'>나랑 닮은 종목 찾기</div>",
+            unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------
 # 8. 대화 기록 출력
@@ -687,7 +693,7 @@ if stage == "result":
         section("나의 성향 그래프")
         st.markdown(axis_bars_html(st.session_state.answers), unsafe_allow_html=True)
         st.download_button("📥 결과 저장하기 (txt)",
-                           data=(f"[나랑 닮은 종목 찾기 결과]\n닉네임: {st.session_state.nick}\n"
+                           data=(f"[투자성향 MBTI · 나랑 닮은 종목 찾기 결과]\n닉네임: {st.session_state.nick}\n"
                                  f"유형: {code} {t['name']}\n닮은 종목: {t['stock']}\n\n왜 닮았을까: {t['why']}\n\n"
                                  f"조심할 실수: {t['caution']}\n\n환상의 짝꿍: {best_match(code)} "
                                  f"{TYPES[best_match(code)]['name']}\n"),
